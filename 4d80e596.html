@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html ng-app="ionicApp">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1, user-scalable=no, width=device-width" />     <!--一些搜索引擎会利用 meta 元素的 name 和 content 属性来索引您的页面。-->
+    <title>宿舍警报系统</title>
+    <link href="//code.ionicframework.com/1.0.0-beta.13/css/ionic.css" rel="stylesheet">   <!-- 标签定义文档与外部资源之间的关系。-->
+    <!-- style 元素内规定 HTML 元素在浏览器中呈现的样式：。-->
+    <style>   
+        #debug {   
+            margin-top:44px;
+            background-color: white;
+            height: 300px;
+            overflow: scroll;
+            color: black;
+            font-size: 12px;
+        }
+        #debug p {
+            padding: 3px 5px;      /* padding 属性定义元素边框与元素内容之间的空间。  */
+            word-wrap: break-word;
+             /*  检索或设置对象中的单词之间间隔。break-word：内容将在边界内换行。如果需要，单词内部允许断行。*/
+        }
+        .gray {
+            background-color: #ddd;
+        }
+        #debug span {
+            display: block;
+            word-wrap: break-word;
+            margin-bottom: 2px;
+        }
+    </style>
+</head>
+<body>
+
+
+
+    <div class="bar bar-header bar-assertive">
+      <h1 class="title" id="device_id"></h1>    <!--    标题还没有内容-->
+  </div>
+
+
+
+
+ <div  valign="middle"><img id="rgbimgid" src="./image/02-red.png" alt=""><br/><span> 警报状态</span></div>
+
+
+
+
+
+
+<!--按钮1-->
+  <div id="debug"></div>
+
+  <div class="bar-footer" style="bottom:0;position:absolute;width:100%">   
+     <div class="item item-input-inset">
+       <label class="item-input-wrapper">
+         <input type="text" placeholder="输入信息" id="message">   <!--用message占位-->
+     </label>
+     <button class="button button-small button-royal" id="send2uart"> 发送 </button>
+ </div>
+
+
+
+
+
+
+
+
+
+
+<!--三个LED   button-->
+ <div class="button-bar">
+     <a class="button" style="background:green; color:white" id="led_red">which room</a>
+     <a class="button" style="background:green; color:white" id="led_green">开启无人模式</a>
+     <a class="button" style="background:green; color:white" id="led_blue">宿舍人数</a>
+ </div>
+
+
+
+
+
+
+
+ <div class="button-bar">
+     <a class="button" style="background:black; color:white" id="led_on">关闭红外</a>
+     <a class="button" style="background:red; color:white" id="led_off">打开红外</a>
+ </div>
+
+
+
+
+
+</div>
+
+
+
+
+
+
+<!--<script> 标签用于定义客户端脚本，比如 JavaScript。-->
+<script src="http://api.easylink.io/assets/js/mqttws31.js"></script>  <!-- 调用外部js   mttq -->
+<script>
+    // 从url中获取某个参数的值
+    function getParameterByName(name) {
+        var match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+        return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+    }
+    // 得到设备ID
+    var device_id = getParameterByName('device_id');//
+    // 如果设备ID不为空，则执行连接MQTT的操作
+    if ( device_id !== null ){   //设备有上线才行
+        ez_connect(device_id);   //连接设备
+    }
+
+    // function dump_obj(myObject) {
+    //     var s = '';
+    //     for (var property in myObject) {
+    //         s += '<span>' + property +": " + myObject[property] + '</span>';
+    //     }
+    //     return s;
+    // }
+
+    // 连接MQTT服务
+    function ez_connect(device_id) {
+        // 获取access_token
+        // access_token是公众号的全局唯一票据，公众号调用各接口时都需使用access_token。
+        // 正常情况下access_token有效期为7200秒，重复获取将导致上次获取的access_token失效
+        var access_token = getParameterByName('access_token');//获取元素
+
+        document.getElementById('device_id').innerHTML = device_id;//将device_idc传给
+
+        // websocket连接
+        // wsbroker:host
+        // wsport:端口 默认1983
+        // Client-ID ： v1_web_[MAC]  //版本号_app_手机MAC(必须是12位小写)
+        var wsbroker = "api.easylink.io";  //mqtt websocket enabled broker
+        var wsport = 1983 // port for above
+        var client = new Paho.MQTT.Client(wsbroker, wsport, "v1-web-" + parseInt(Math.random() * 1000000, 12));
+
+        // 基本参数配置
+        // 连接丢失所对应的callback函数
+        client.onConnectionLost = onConnectionLost;
+        // 消息到达所对应的callback函数
+        client.onMessageArrived = onMessageArrived;
+        // 连接成功所对应的callback函数
+        client.connect({onSuccess:onConnect});
+
+
+
+
+
+        // 连接成功
+        function onConnect() {
+            var subtopic = device_id+'/out/#';
+            // Once a connection has been made, make a subscription and send a message.
+            // 向某个通道发送指令
+            // topic：通道
+            // commond：指令
+            client.publish = function(topic, commond) {
+                console.log("现在执行-->:"+commond);        //发送出去成功会反馈回来信息  commmod为
+                message = new Paho.MQTT.Message(commond);
+                message.destinationName = topic;    //终点名
+                client.send(message);
+            }
+            console.log("device_id:"+device_id);  //控制台输出可以看到连接状态
+            console.log("onConnect");
+            client.subscribe(subtopic, {qos: 0});  //客户端订阅信息
+        }
+
+
+
+
+
+
+
+        // 连接丢失
+        function onConnectionLost(responseObject) {
+            if (responseObject.errorCode !== 0)
+                console.log("onConnectionLost:"+responseObject.errorMessage);//打印连接丢失信息
+
+
+
+
+
+
+        }
+        // 消息到达
+         var msgjson;
+        function onMessageArrived(message) {
+            //console.log(message.topic + ': ' +  message.payloadString);//打印信息送达信息
+
+             msgjson = $.parseJSON(message.payloadString);
+             var tempval = msgjson.dht11_temperature;  //注意key名
+             if("undefined" != typeof(tempval))
+             {
+
+                  if(tempval >"0")
+                  {
+                    $("#rgbimgid").attr("src", "./image/02-red.svg");
+
+                  }
+                else 
+
+                 $("#rgbimgid").attr("src", "./image/02-red.png");
+
+
+             }
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        // 串口数据发送部分
+        var inputMessage = document.getElementById('message');
+        // 将消息发送到指定的通道
+        function send2uart() {
+            if ( inputMessage.value.length == 0 ) return;
+            var topic = device_id+'/in/write';
+            var commond = '{"11":"' + inputMessage.value + '"}';
+            client.publish(topic, commond);
+            console.log(inputMessage.value);
+            inputMessage.value = '';
+        }
+        // document.querySelector('#send2uart').addEventListener('touchstart', send2uart);
+        document.querySelector('#send2uart').addEventListener('click', send2uart);//为点击添加串口发送事件
+
+        function led_on() {
+            var topic = device_id+'/in/write';
+            var commond = '{"rgbled_switch":true}';
+            client.publish(topic, commond);
+        }
+        // document.querySelector('#led_on').addEventListener('touchstart', led_on);
+        document.querySelector('#led_on').addEventListener('click', led_on);// querySelector() 方法仅仅返回匹配指定选择器的第一个元素
+
+        function led_off() {
+            var topic = device_id+'/in/write';    
+            var commond = '{"rgbled_switch":false}';  //数据点，自己定义的  false类型
+            client.publish(topic, commond);   //网页把控制命令发出去
+        }
+        // document.querySelector('#led_off').addEventListener('touchstart', led_off);
+        document.querySelector('#led_off').addEventListener('click', led_off);
+
+
+
+
+
+
+
+
+        function led_red() {     //查询宿舍人数    如何接收信息？？？？
+            var topic = device_id+'/in/write';//订阅的主题
+            var commond = '{"rgbled_switch":true,"rgbled_hues":0, "rgbled_saturation":100, "rgbled_brightness":100}';  //这里控制命令可以有多条
+            client.publish(topic, commond);
+        }
+        // document.querySelector('#led_red').addEventListener('touchstart', led_red);
+        document.querySelector('#led_red').addEventListener('click', led_red);//为id为id的元素添加事件，按下执行led_red函数
+
+
+
+
+
+
+
+
+
+
+
+        function led_green() {
+            var topic = device_id+'/in/write';
+            var commond = '{"rgbled_switch":true,"rgbled_hues":120, "rgbled_saturation":100, "rgbled_brightness":100}'; //控制开   加  红色rgb数据
+            client.publish(topic, commond);
+        }
+        // document.querySelector('#led_green').addEventListener('touchstart', led_green);
+        document.querySelector('#led_green').addEventListener('click', led_green);
+
+        function led_blue() {
+            var topic = device_id+'/in/write';
+            var commond = '{"rgbled_switch":true,"rgbled_hues":240, "rgbled_saturation":100, "rgbled_brightness":100}'; 
+            client.publish(topic, commond);
+        }
+        // document.querySelector('#led_blue').addEventListener('touchstart', led_blue);
+        document.querySelector('#led_blue').addEventListener('click', led_blue);
+    }
+
+    // 日志打印在页面的部分    可以显示的东西  
+    var i = 0;
+    console.log = (function(old_funct, div_log) {
+        return function(text) {
+            old_funct(text);
+            var p = '';
+            if (i%2 == 0)
+                p = '<p>';
+            else
+                p = '<p class=\'gray\'>';
+
+            if (typeof text === "object")
+                div_log.innerHTML += p + JSON.stringify(text) + '</p>';
+            else
+                div_log.innerHTML += p + text + '</p>';
+
+            div_log.scrollTop = div_log.scrollHeight;
+            i += 1;
+        };
+    } (console.log.bind(console), document.getElementById("debug")));
+    console.error = console.debug = console.info =  console.log;
+
+</script>
+<noscript>Sorry, your browser does not support JavaScript!</noscript>   <!--如何应对不支持脚本或禁用脚本的浏览器。-->
+</body>
+</html>
