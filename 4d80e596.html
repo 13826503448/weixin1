@@ -38,10 +38,10 @@
       <h1 class="title" id="device_id"></h1>    <!--    标题还没有内容-->
   </div>
 
+  
 
 
-
- <div  valign="middle"><img id="rgbimgid" src="./image/02-red.png" alt=""><br/><span> 警报状态</span></div>
+ <!--<div  valign="middle"><img id="rgbimgid" src="./image/02-red.png" alt=""><br/><span> 警报状态</span></div>   -->
 
 
 
@@ -127,8 +127,8 @@
         // 正常情况下access_token有效期为7200秒，重复获取将导致上次获取的access_token失效
         var access_token = getParameterByName('access_token');//获取元素
 
-        document.getElementById('device_id').innerHTML = device_id;//将device_idc传给
-
+        //document.getElementById('device_id').innerHTML = device_id;//将device_idc传给
+        
         // websocket连接
         // wsbroker:host
         // wsport:端口 默认1983
@@ -157,7 +157,7 @@
             // topic：通道
             // commond：指令
             client.publish = function(topic, commond) {
-                console.log("现在执行-->:"+commond);        //发送出去成功会反馈回来信息  commmod为
+               console.log("现在执行-->:"+commond);        //发送出去成功会反馈回来信息  commmod为   到时改为ok
                 message = new Paho.MQTT.Message(commond);
                 message.destinationName = topic;    //终点名
                 client.send(message);
@@ -168,7 +168,7 @@
         }
 
 
-
+        
 
 
 
@@ -179,29 +179,48 @@
                 console.log("onConnectionLost:"+responseObject.errorMessage);//打印连接丢失信息
 
 
-
-
-
-
         }
+
+
+
+
+
         // 消息到达
          var msgjson;
         function onMessageArrived(message) {
-            //console.log(message.topic + ': ' +  message.payloadString);//打印信息送达信息
+            console.log(message.topic + ': ' +  message.payloadString);//打印信息送达信息
 
              msgjson = $.parseJSON(message.payloadString);
              var tempval = msgjson.dht11_temperature;  //注意key名
+             var humval=msgjson.dht11_humidity;
              if("undefined" != typeof(tempval))
              {
 
-                  if(tempval >"0")
+                  if(tempval =="0")//警报
                   {
-                    $("#rgbimgid").attr("src", "./image/02-red.svg");
+                    //$("#rgbimgid").attr("src", "./image/02-red.svg");
+                     document.getElementById('device_id').innerHTML="warn";
 
                   }
-                else 
+                  else  if(tempval =="1")//显示房间号
+                  {
+                    console.log("现在执行-->:"+humval);  
 
-                 $("#rgbimgid").attr("src", "./image/02-red.png");
+                  }
+                  else  if(tempval =="2")//显示人数
+                  {
+                    console.log("现在执行-->:"+humval);  
+
+                  }            
+                  else if
+
+                // $("#rgbimgid").attr("src", "./image/02-red.png");
+                 document.getElementById('device_id').innerHTML="safe";
+               
+
+
+
+
 
 
              }
@@ -248,6 +267,9 @@
         // document.querySelector('#send2uart').addEventListener('touchstart', send2uart);
         document.querySelector('#send2uart').addEventListener('click', send2uart);//为点击添加串口发送事件
 
+
+
+
         function led_on() {
             var topic = device_id+'/in/write';
             var commond = '{"rgbled_switch":true}';
@@ -255,6 +277,15 @@
         }
         // document.querySelector('#led_on').addEventListener('touchstart', led_on);
         document.querySelector('#led_on').addEventListener('click', led_on);// querySelector() 方法仅仅返回匹配指定选择器的第一个元素
+
+
+
+
+
+
+
+
+
 
         function led_off() {
             var topic = device_id+'/in/write';    
